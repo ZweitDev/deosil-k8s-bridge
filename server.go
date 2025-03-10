@@ -21,54 +21,66 @@ var addr = flag.String("addr", "localhost:8080", "http service address")
 var upgrader = websocket.Upgrader{}
 
 func handler(clientset *kubernetes.Clientset) http.HandlerFunc {
-return func (writer http.ResponseWriter, reader *http.Request) {
-	c, err := upgrader.Upgrade(writer, reader, nil)
+	return func(writer http.ResponseWriter, reader *http.Request) {
+		c, err := upgrader.Upgrade(writer, reader, nil)
 
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
+		if err != nil {
+			log.Print("upgrade:", err)
+			return
+		}
+
+		defer c.Close()
+
+		log.Printf("Starting WebSocket Handler for new session")
+
+		// TODO: Do not do this upon every client connecting...
+		// This is just a test so that we can see if creating a connection creates a resource properly
+		minio.CreateNamespace(clientset)
+		minio.CreatePVC(clientset)
+		minio.CreateMinioDeployment(clientset)
+		minio.CreateMinioService(clientset)
+
+		// Get the Minio Service endpoint
+		// endpoint, err := minio.GetMinioServiceEndpoint(clientset)
+		// if err != nil {
+		// 	log.Fatalf("Failed to get Minio Service endpoint: %v", err)
+		// }
+		// log.Printf("Minio service is available at %s", endpoint)
+
+		// Begin WS message handler loop
+		for {
+			mt, message, err := c.ReadMessage()
+
+			podsResult, err := k8s.GetPods(clientset, "kube-system")
+
+			if err != nil {
+				log.Println("read:", err)
+				break
+			}
+
+			log.Printf("recv: %s", message)
+			err = c.WriteMessage(mt, message)
+
+			if err != nil {
+				log.Println("write:", err)
+				break
+			}
+
+			// Convert nodesResult ([]string) to JSON ([]byte)
+			podsJSON, err := json.Marshal(podsResult)
+			if err != nil {
+				log.Println("error encoding nodes to JSON:", err)
+				break
+			}
+			err = c.WriteMessage(mt, podsJSON)
+			if err != nil {
+				log.Println("write:", err)
+				break
+			}
+
+			log.Printf("Wrote pods to client")
+		}
 	}
-
-	defer c.Close()
-
-	log.Printf("Starting WebSocket Handler for new session")
-	
-	// TODO: Do not do this upon every client connecting...
-	minio.CreatePVC(clientset)
-
-	for {
-		mt, message, err := c.ReadMessage()
-
-		podsResult, err := k8s.GetPods(clientset, "kube-system")
-
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-
-		// Convert nodesResult ([]string) to JSON ([]byte)
-		podsJSON, err := json.Marshal(podsResult)
-		if err != nil {
-			log.Println("error encoding nodes to JSON:", err)
-			break
-		}
-		err = c.WriteMessage(mt, podsJSON)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-
-		log.Printf("Wrote pods to client")
-	}
-}
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
@@ -76,13 +88,13 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	clientset, err  := k8s.GetKubernetesClient()
+	clientset, err := k8s.GetKubernetesClient()
 	if err != nil {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 	flag.Parse()
 	log.SetFlags(0)
-	
+
 	http.HandleFunc("/echo", handler(clientset))
 	http.HandleFunc("/", home)
 	log.Printf("Starting Deosil Server")

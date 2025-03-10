@@ -2,7 +2,7 @@ package minio
 
 import (
 	"context"
-	"fmt"
+	"log"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -41,8 +41,11 @@ func CreatePVC(clientset *kubernetes.Clientset){
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create PVC: %v", err))
+		//panic(fmt.Sprintf("Failed to create PVC: %v", err))
+		log.Printf("Failed to create PVC: %v", err)
+		log.Printf("Perhaps the PVC already exists?")
+	} else {
+		log.Printf("Successfully created PVC %q in namespace %q", createdPVC.Name, createdPVC.Namespace)
 	}
 
-	fmt.Printf("Successfully created PVC %q in namespace %q \n", createdPVC.Name, createdPVC.Namespace)
 }

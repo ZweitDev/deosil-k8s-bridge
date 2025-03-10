@@ -1,4 +1,4 @@
-package k8s_minio
+package minio
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func createPVC(clientset *kubernetes.Clientset){
+func CreatePVC(clientset *kubernetes.Clientset){
 	pvcName := "minio-pvc"	
 	namespace := "minio"
 	storageSize := "10Gi"

@@ -5,6 +5,7 @@ package main
 
 import (
 	"deosil-k8s-bridge/lib/k8s"
+	"deosil-k8s-bridge/lib/k8s/minio"
 	"encoding/json"
 	"flag"
 	"html/template"
@@ -30,7 +31,10 @@ return func (writer http.ResponseWriter, reader *http.Request) {
 
 	defer c.Close()
 
-
+	log.Printf("Starting WebSocket Handler for new session")
+	
+	// TODO: Do not do this upon every client connecting...
+	minio.CreatePVC(clientset)
 
 	for {
 		mt, message, err := c.ReadMessage()
@@ -81,6 +85,7 @@ func main() {
 	
 	http.HandleFunc("/echo", handler(clientset))
 	http.HandleFunc("/", home)
+	log.Printf("Starting Deosil Server")
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 

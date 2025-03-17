@@ -22,7 +22,7 @@ func CreateTraefikClusterRole() *rbacv1.ClusterRole {
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
-				APIGroups: []string{"traefik.io"},
+				APIGroups: []string{"traefik.containo.us"},
 				Resources: []string{"ingressroutes", "middlewares"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
